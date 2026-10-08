@@ -35,7 +35,7 @@ export function Footer() {
     <footer className="mt-20 border-t border-border">
       <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-4 py-8 text-sm text-muted-foreground sm:flex-row">
         <Logo />
-        <p>Buy it. Use it. Loop it. · Students only.</p>
+        <p>Buy it. Use it. Loop it. · Students only<br />TEAM-VentureX.</p>
       </div>
     </footer>
   );
