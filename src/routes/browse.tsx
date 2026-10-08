@@ -7,7 +7,7 @@ import { CAMPUSES, CATEGORIES, listingsQuery, SAMPLE, type Category, type Mode }
 type Search = { q?: string | undefined; category?: Category | undefined; mode?: Mode | undefined; campus?: string | undefined; max?: number | undefined };
 
 export const Route = createFileRoute("/browse")({
-  validateSearch: (s: Record<string, unknown>): Search => ({
+  validateSearch: (s: { q?: unknown; category?: unknown; mode?: unknown; campus?: unknown; max?: unknown }): Search => ({
     q: typeof s.q === "string" ? s.q : undefined,
     category: typeof s.category === "string" ? (s.category as Category) : undefined,
     mode: typeof s.mode === "string" ? (s.mode as Mode) : undefined,
