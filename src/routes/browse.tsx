@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { Header, Footer, ListingCard } from "@/components/site";
 import { CAMPUSES, CATEGORIES, listingsQuery, SAMPLE, type Category, type Mode } from "@/lib/listings";
 
-type Search = { q?: string; category?: Category; mode?: Mode; campus?: string; max?: number };
+type Search = { q?: string | undefined; category?: Category | undefined; mode?: Mode | undefined; campus?: string | undefined; max?: number | undefined };
 
 export const Route = createFileRoute("/browse")({
   validateSearch: (s: Record<string, unknown>): Search => ({
