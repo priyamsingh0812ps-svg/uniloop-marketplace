@@ -171,3 +171,4 @@
 @utility chip-exchange { background: var(--foreground); color: var(--background); }
 @keyframes spin-slow { to { transform: rotate(360deg); } }
 @utility animate-spin-slow { animation: spin-slow 24s linear infinite; }
+@source inline("chip-buy chip-rent chip-exchange");
