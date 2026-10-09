@@ -22,7 +22,7 @@ export function Logo() {
   );
 }
 
-export function Avatar({ name, url, size = 9 }: { name: string; url?: string | null; size?: number }) {
+export function Avatar({ name, url, size = 9 }: { name: string; url?: string | null | undefined; size?: number }) {
   const cls = size === 9 ? "h-9 w-9 text-sm" : size === 12 ? "h-12 w-12 text-base" : "h-16 w-16 text-xl";
   if (url) return <img src={url} alt={name} className={`${cls} rounded-full object-cover`} />;
   return <span className={`${cls} inline-flex shrink-0 items-center justify-center rounded-full bg-primary font-bold text-primary-foreground`}>{(name || "?").charAt(0).toUpperCase()}</span>;
@@ -40,7 +40,7 @@ export function Header() {
     await signOut();
     qc.clear();
     setOpen(false);
-    nav({ to: "/login", replace: true });
+    window.location.assign("/login");
   };
 
   const links = [
@@ -56,10 +56,10 @@ export function Header() {
         <Logo />
         <nav className="hidden items-center gap-1 text-sm font-medium md:flex">
           <Link to="/browse" className="rounded-full px-4 py-2 text-muted-foreground hover:text-foreground" activeProps={{ className: "text-foreground" }}>Browse</Link>
-          <Link to="/sell" className="btn-accent px-4 py-2">Sell</Link>
+          <L to="/sell" className="btn-accent px-4 py-2">Sell</L>
           {user ? (
             <>
-              <Link to="/messages" className="relative ml-1 rounded-full p-2 text-muted-foreground hover:text-foreground" aria-label="Messages">
+              <L to="/messages" className="relative ml-1 rounded-full p-2 text-muted-foreground hover:text-foreground" aria-label="Messages">
                 <MessageCircle className="h-5 w-5" />
                 {unread > 0 && <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-bold text-accent-foreground">{unread}</span>}
               </Link>
@@ -71,7 +71,7 @@ export function Header() {
                   <DropdownMenuLabel className="truncate">{name}</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   {links.map((l) => (
-                    <DropdownMenuItem key={l.to} onSelect={() => nav({ to: l.to })}>
+                    <DropdownMenuItem key={l.to} onSelect={() => window.location.assign(l.to)}>
                       {l.label}{l.to === "/messages" && unread > 0 && <span className="ml-auto text-xs font-bold text-accent">{unread}</span>}
                     </DropdownMenuItem>
                   ))}
@@ -82,15 +82,15 @@ export function Header() {
             </>
           ) : (
             <>
-              <Link to="/login" className="rounded-full px-4 py-2 text-foreground hover:bg-secondary">Log in</Link>
-              <Link to="/signup" className="btn-primary px-4 py-2">Sign up</Link>
+              <L to="/login" className="rounded-full px-4 py-2 text-foreground hover:bg-secondary">Log in</L>
+              <L to="/signup" className="btn-primary px-4 py-2">Sign up</L>
             </>
           )}
         </nav>
 
         <div className="flex items-center gap-1 md:hidden">
           {user && (
-            <Link to="/messages" className="relative p-2 text-muted-foreground" aria-label="Messages">
+            <L to="/messages" className="relative p-2 text-muted-foreground" aria-label="Messages">
               <MessageCircle className="h-5 w-5" />
               {unread > 0 && <span className="absolute right-0 top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-bold text-accent-foreground">{unread}</span>}
             </Link>
@@ -111,7 +111,7 @@ export function Header() {
                 ) : (
                   <>
                     <MobileLink to="/login" onClick={() => setOpen(false)}>Log in</MobileLink>
-                    <Link to="/signup" onClick={() => setOpen(false)} className="btn-primary mt-2 px-4 py-3">Sign up</Link>
+                    <L to="/signup" onClick={() => setOpen(false)} className="btn-primary mt-2 px-4 py-3">Sign up</L>
                   </>
                 )}
               </div>
@@ -124,7 +124,7 @@ export function Header() {
 }
 
 function MobileLink({ to, onClick, children }: { to: string; onClick: () => void; children: ReactNode }) {
-  return <Link to={to} onClick={onClick} className="rounded-xl px-3 py-2.5 hover:bg-secondary">{children}</Link>;
+  return <a href={to} onClick={onClick} className="rounded-xl px-3 py-2.5 hover:bg-secondary">{children}</a>;
 }
 
 export function Footer() {
@@ -205,3 +205,8 @@ export function ListingCard({ l }: { l: Listing }) {
 }
 
 export const inputCls = "w-full rounded-xl border border-input bg-card px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring";
+
+// Plain link for pages not yet built.
+function L({ to, children, ...rest }: { to: string; children?: ReactNode; className?: string; onClick?: () => void; "aria-label"?: string }) {
+  return <a href={to} {...rest}>{children}</a>;
+}
