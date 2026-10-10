@@ -67,25 +67,25 @@
 
 :root {
   --radius: 1rem;
-  --background: oklch(0.985 0.008 170);
-  --foreground: oklch(0.22 0.04 200);
+  --background: oklch(0.967 0.003 264.5);
+  --foreground: oklch(0.373 0.034 259.7);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.22 0.04 200);
+  --card-foreground: oklch(0.373 0.034 259.7);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.22 0.04 200);
-  --primary: oklch(0.58 0.12 180);
+  --popover-foreground: oklch(0.373 0.034 259.7);
+  --primary: oklch(0.373 0.034 259.7);
   --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.94 0.04 170);
-  --secondary-foreground: oklch(0.3 0.07 185);
-  --muted: oklch(0.95 0.015 175);
-  --muted-foreground: oklch(0.5 0.03 200);
-  --accent: oklch(0.74 0.17 55);
-  --accent-foreground: oklch(0.2 0.04 50);
+  --secondary: oklch(0.928 0.006 264.5);
+  --secondary-foreground: oklch(0.373 0.034 259.7);
+  --muted: oklch(0.945 0.004 264.5);
+  --muted-foreground: oklch(0.551 0.027 264.4);
+  --accent: oklch(0.755 0.17 54);
+  --accent-foreground: oklch(0.99 0 0);
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(0.984 0.003 247.858);
-  --border: oklch(0.91 0.02 175);
-  --input: oklch(0.91 0.02 175);
-  --ring: oklch(0.58 0.12 180);
+  --border: oklch(0.9 0.005 264.5);
+  --input: oklch(0.88 0.006 264.5);
+  --ring: oklch(0.755 0.17 54);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
@@ -99,9 +99,9 @@
   --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
   --sidebar-border: oklch(0.929 0.013 255.508);
   --sidebar-ring: oklch(0.704 0.04 256.788);
-  --hero-gradient: linear-gradient(135deg, oklch(0.42 0.1 185), oklch(0.62 0.14 160));
-  --shadow-soft: 0 2px 10px -4px oklch(0.4 0.08 185 / 0.15);
-  --shadow-lift: 0 18px 40px -16px oklch(0.4 0.1 185 / 0.35);
+  --hero-gradient: linear-gradient(135deg, oklch(0.28 0.03 260), oklch(0.45 0.03 260));
+  --shadow-soft: 0 2px 10px -4px oklch(0.3 0.02 260 / 0.15);
+  --shadow-lift: 0 18px 40px -16px oklch(0.3 0.02 260 / 0.3);
 }
 
 .dark {
@@ -171,4 +171,5 @@
 @utility chip-exchange { background: var(--foreground); color: var(--background); }
 @keyframes spin-slow { to { transform: rotate(360deg); } }
 @utility animate-spin-slow { animation: spin-slow 24s linear infinite; }
-@source inline("chip-buy chip-rent chip-exchange");
+@utility chip-meal { background: var(--card); color: var(--accent); border: 1px solid var(--accent); }
+@source inline("chip-buy chip-rent chip-exchange chip-meal");

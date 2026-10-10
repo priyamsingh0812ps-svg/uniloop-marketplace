@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { BadgeCheck, Clock, Loader2, Menu, MessageCircle, Star } from "lucide-react";
 import type { Listing } from "@/lib/listings";
-import { formatPrice, sellerName } from "@/lib/listings";
+import { formatPrice, sellerName, MODE_LABEL } from "@/lib/listings";
 import { useAuth } from "@/lib/auth";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
@@ -17,7 +17,7 @@ export function Logo() {
         <circle cx="16" cy="16" r="12" fill="none" stroke="var(--primary)" strokeWidth="4" strokeDasharray="56 20" strokeLinecap="round" />
         <circle cx="25" cy="9" r="3.5" fill="var(--accent)" />
       </svg>
-      <span><span className="text-foreground">Uni</span><span className="text-primary">Loop</span></span>
+      <span><span className="text-foreground">Uni</span><span className="text-accent">Loop</span></span>
     </Link>
   );
 }
@@ -180,7 +180,7 @@ export function Stars({ value, onChange, size = 4 }: { value: number; onChange?:
   );
 }
 
-const modeClass: Record<string, string> = { buy: "chip-buy", rent: "chip-rent", exchange: "chip-exchange" };
+const modeClass: Record<string, string> = { buy: "chip-buy", rent: "chip-rent", exchange: "chip-exchange", meal: "chip-meal" };
 
 export function ListingCard({ l }: { l: Listing }) {
   const img = l.images?.[0] ?? l.image_url;
@@ -188,12 +188,12 @@ export function ListingCard({ l }: { l: Listing }) {
     <Link to="/item/$id" params={{ id: l.id }} className="group overflow-hidden rounded-2xl border border-border bg-card shadow-soft transition hover:-translate-y-1 hover:shadow-lift">
       <div className="relative aspect-[4/3] overflow-hidden bg-muted">
         {img && <img src={img} alt={l.title} loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />}
-        <span className={`chip absolute left-3 top-3 ${modeClass[l.mode]}`}>{l.mode}</span>
+        <span className={`chip absolute left-3 top-3 ${modeClass[l.mode]}`}>{MODE_LABEL[l.mode]}</span>
         {l.status !== "available" && <span className="chip absolute right-3 top-3 bg-card text-foreground">{l.status}</span>}
       </div>
       <div className="p-4">
         <h3 className="line-clamp-1 font-semibold text-card-foreground">{l.title}</h3>
-        <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">{l.campus} · {l.condition} · {sellerName(l)}</p>
+        <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">{l.subcategory ?? l.campus} · {l.campus} · {sellerName(l)}</p>
         <div className="mt-3 flex items-center justify-between">
           <span className="font-display text-lg font-bold text-primary">{formatPrice(l)}</span>
           {l.seller?.verified && <BadgeCheck className="h-4 w-4 text-primary" aria-label="Verified seller" />}
