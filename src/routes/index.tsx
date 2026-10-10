@@ -46,7 +46,7 @@ function Index() {
         <div className="mt-6 grid grid-cols-3 gap-3 sm:grid-cols-6">
           {CATEGORIES.map((c) => (
             <Link key={c.value} to="/browse" search={{ category: c.value }} className="flex flex-col items-center gap-2 rounded-2xl border border-border bg-card p-4 text-sm font-semibold shadow-soft transition hover:-translate-y-0.5 hover:border-primary">
-              <span className="text-3xl">{c.emoji}</span>{c.label}
+              <c.icon className="h-10 w-10 text-accent" />{c.label}
             </Link>
           ))}
         </div>

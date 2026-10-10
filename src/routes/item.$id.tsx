@@ -49,7 +49,7 @@ function Item() {
           <div>
             <div className="flex flex-wrap gap-2">
               <span className={`chip chip-${l.mode}`}>{l.mode}</span>
-              <span className="chip bg-secondary text-secondary-foreground">{cat?.emoji} {cat?.label}</span>
+              <span className="chip bg-secondary text-secondary-foreground">{cat?.label}</span>
             </div>
             <h1 className="mt-4 font-display text-3xl font-bold sm:text-4xl">{l.title}</h1>
             <p className="mt-3 font-display text-3xl font-extrabold text-primary">{formatPrice(l)}</p>
