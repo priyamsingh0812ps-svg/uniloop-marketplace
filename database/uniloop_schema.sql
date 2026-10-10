@@ -12,8 +12,6 @@ drop function if exists public.is_college_email(text) cascade;
 drop type if exists public.listing_mode cascade;
 drop type if exists public.listing_category cascade;
 
-create type public.listing_mode as enum ('buy','rent','exchange');
-create type public.listing_category as enum ('books','calculators','cycles','furniture','gadgets','other');
 
 create or replace function public.is_college_email(e text) returns boolean
 language sql immutable as $$ select coalesce(e,'') ~* '\.(edu|ac\.in|edu\.in|ac\.[a-z]{2})$' $$;
@@ -77,12 +75,15 @@ create table public.listings (
   seller_id uuid not null references public.profiles(id) on delete cascade,
   title text not null check (char_length(title) between 3 and 100),
   description text not null default '' check (char_length(description) <= 2000),
-  category public.listing_category not null,
-  mode public.listing_mode not null,
+  category text not null check (category in ('study','hostel','sports','vehicles','gadgets','food','accommodation')),
+  subcategory text check (char_length(subcategory) <= 60),
+  mode text not null check (mode in ('buy','rent','exchange','meal')),
   price numeric(10,2) not null default 0 check (price >= 0),
   rent_period text check (rent_period in ('day','week','month','semester')),
+  check ((category = 'food') = (mode = 'meal')),
+  check (category <> 'accommodation' or mode = 'rent'),
   condition text not null default 'Good',
-  campus text not null,
+  campus text not null check (char_length(campus) between 2 and 120),
   images text[] not null default '{}',
   image_url text,
   status text not null default 'available' check (status in ('available','reserved','sold','unavailable')),
@@ -105,7 +106,7 @@ create table public.requests (
   item_id uuid not null references public.listings(id) on delete cascade,
   buyer_id uuid not null references public.profiles(id) on delete cascade,
   seller_id uuid not null references public.profiles(id) on delete cascade,
-  type public.listing_mode not null,
+  type text not null check (type in ('buy','rent','exchange','meal')),
   start_date date,
   end_date date,
   message text check (char_length(message) <= 500),

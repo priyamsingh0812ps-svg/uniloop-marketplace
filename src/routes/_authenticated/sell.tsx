@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { Page, inputCls, Loader } from "@/components/site";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
-import { CAMPUSES, CATEGORIES, CONDITIONS, type Category, type Mode } from "@/lib/listings";
+import { CATEGORIES, CONDITIONS, MODE_LABEL, catDef, type Category, type Mode } from "@/lib/listings";
 
 export const Route = createFileRoute("/_authenticated/sell")({
   validateSearch: (s: Record<string, unknown>): { edit?: string | undefined } => ({ edit: typeof s.edit === "string" ? s.edit : undefined }),
@@ -23,11 +23,11 @@ export const Route = createFileRoute("/_authenticated/sell")({
   component: Sell,
 });
 
-const empty = { title: "", description: "", category: "books" as Category, condition: "Good", mode: "buy" as Mode, price: "", rent_period: "day", campus: CAMPUSES[0] };
+const empty = { title: "", description: "", category: "study" as Category, subcategory: "Books", condition: "Good", mode: "buy" as Mode, price: "", rent_period: "day", campus: "" };
 
 function Sell() {
   const { edit } = Route.useSearch();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const nav = useNavigate();
   const qc = useQueryClient();
   const [f, setF] = useState(empty);
@@ -36,12 +36,13 @@ function Sell() {
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(!!edit);
+  useEffect(() => { if (!edit && profile?.college) setF((p) => (p.campus ? p : { ...p, campus: profile.college })); }, [edit, profile]);
 
   useEffect(() => {
     if (!edit) return;
     supabase.from("listings").select("*").eq("id", edit).maybeSingle().then(({ data }) => {
       if (data) {
-        setF({ title: data.title, description: data.description, category: data.category, condition: data.condition, mode: data.mode, price: String(data.price), rent_period: data.rent_period ?? "day", campus: data.campus });
+        setF({ title: data.title, description: data.description, category: data.category, subcategory: data.subcategory ?? "", condition: data.condition, mode: data.mode, price: String(data.price), rent_period: data.rent_period ?? "day", campus: data.campus });
         setImages(data.images ?? []);
       } else setErr("Couldn't load this listing.");
       setLoading(false);
@@ -66,6 +67,8 @@ function Sell() {
     if (f.title.trim().length < 3) return setErr("Title must be at least 3 characters.");
     if (f.description.trim().length < 10) return setErr("Description must be at least 10 characters.");
     if (f.mode !== "exchange" && (!price || price <= 0)) return setErr("Enter a price greater than 0.");
+    if (f.campus.trim().length < 2) return setErr("Enter your college / campus name.");
+    if (!f.subcategory) return setErr("Choose a subcategory.");
     if (total === 0) return setErr("Add at least one photo.");
     if (!user) return;
     setBusy(true);
@@ -80,7 +83,7 @@ function Sell() {
       const all = [...images, ...uploaded];
       const row = {
         title: f.title.trim(), description: f.description.trim(), category: f.category, condition: f.condition, mode: f.mode,
-        price: f.mode === "exchange" ? 0 : price, rent_period: f.mode === "rent" ? f.rent_period : null, campus: f.campus,
+        subcategory: f.subcategory, price: f.mode === "exchange" ? 0 : price, rent_period: f.mode === "rent" || f.mode === "meal" ? f.rent_period : null, campus: f.campus.trim(),
         images: all, image_url: all[0],
       };
       const res = edit
@@ -130,21 +133,22 @@ function Sell() {
         <label className="block text-sm font-medium">Title<input value={f.title} onChange={set("title")} maxLength={100} className={`${inputCls} mt-1`} placeholder="e.g. Casio fx-991EX calculator" /></label>
         <label className="block text-sm font-medium">Description<textarea value={f.description} onChange={set("description")} maxLength={2000} rows={4} className={`${inputCls} mt-1`} placeholder="Condition, what's included, pickup spot…" /></label>
         <div className="grid gap-4 sm:grid-cols-2">
-          <label className="block text-sm font-medium">Category<select value={f.category} onChange={set("category")} className={`${inputCls} mt-1`}>{CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}</select></label>
+          <label className="block text-sm font-medium">Category<select value={f.category} onChange={(e) => { const c = catDef(e.target.value)!; setF({ ...f, category: c.value, subcategory: c.subs[0], mode: c.modes.includes(f.mode) ? f.mode : c.modes[0], rent_period: c.value === "accommodation" || c.value === "food" ? "month" : f.rent_period }); }} className={`${inputCls} mt-1`}>{CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}</select></label>
+          <label className="block text-sm font-medium">Subcategory<select value={f.subcategory} onChange={set("subcategory")} className={`${inputCls} mt-1`}>{catDef(f.category)!.subs.map((x) => <option key={x}>{x}</option>)}</select></label>
           <label className="block text-sm font-medium">Condition<select value={f.condition} onChange={set("condition")} className={`${inputCls} mt-1`}>{CONDITIONS.map((c) => <option key={c}>{c}</option>)}</select></label>
-          <label className="block text-sm font-medium">Campus<select value={f.campus} onChange={set("campus")} className={`${inputCls} mt-1`}>{CAMPUSES.map((c) => <option key={c}>{c}</option>)}</select></label>
+          <label className="block text-sm font-medium">College / campus<input value={f.campus} onChange={set("campus")} maxLength={120} placeholder="Type your college name" className={`${inputCls} mt-1`} /></label>
           <div className="text-sm font-medium">Listing type
             <div className="mt-1 grid grid-cols-3 gap-2">
-              {(["buy", "rent", "exchange"] as const).map((m) => (
-                <button type="button" key={m} onClick={() => setF({ ...f, mode: m })} className={`rounded-xl py-2.5 text-sm font-semibold capitalize ${f.mode === m ? "bg-primary text-primary-foreground" : "bg-secondary"}`}>{m === "buy" ? "Sell" : m}</button>
+              {catDef(f.category)!.modes.map((m) => (
+                <button type="button" key={m} onClick={() => setF({ ...f, mode: m })} className={`rounded-xl py-2.5 text-sm font-semibold capitalize ${f.mode === m ? "bg-primary text-primary-foreground" : "bg-secondary"}`}>{MODE_LABEL[m]}</button>
               ))}
             </div>
           </div>
         </div>
         {f.mode !== "exchange" && (
           <div className="grid gap-4 sm:grid-cols-2">
-            <label className="block text-sm font-medium">{f.mode === "rent" ? "Rent (₹)" : "Price (₹)"}<input type="number" min={1} value={f.price} onChange={set("price")} className={`${inputCls} mt-1`} /></label>
-            {f.mode === "rent" && <label className="block text-sm font-medium">Per<select value={f.rent_period} onChange={set("rent_period")} className={`${inputCls} mt-1`}><option value="day">Day</option><option value="week">Week</option><option value="month">Month</option></select></label>}
+            <label className="block text-sm font-medium">{f.mode === "rent" ? "Rent (₹)" : f.mode === "meal" ? "Plan price (₹)" : "Price (₹)"}<input type="number" min={1} value={f.price} onChange={set("price")} className={`${inputCls} mt-1`} /></label>
+            {(f.mode === "rent" || f.mode === "meal") && <label className="block text-sm font-medium">Per<select value={f.rent_period} onChange={set("rent_period")} className={`${inputCls} mt-1`}><option value="day">Day</option><option value="week">Week</option><option value="month">Month</option></select></label>}
           </div>
         )}
         {err && <p role="alert" className="rounded-xl bg-destructive/10 px-3 py-2 text-sm text-destructive">{err}</p>}
