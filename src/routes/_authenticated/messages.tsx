@@ -28,7 +28,7 @@ interface Convo {
   item: { id: string; title: string; image_url: string | null } | null;
   buyer: { full_name: string; avatar_url: string | null } | null;
   seller: { full_name: string; avatar_url: string | null } | null;
-  last?: Msg; unread: number;
+  last?: Msg | undefined; unread: number;
 }
 
 const time = (iso: string) => {

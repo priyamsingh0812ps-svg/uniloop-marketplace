@@ -152,7 +152,7 @@ export function Loader({ label = "Loading…" }: { label?: string }) {
   return <div className="flex items-center justify-center gap-2 py-20 text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" />{label}</div>;
 }
 
-export function Empty({ title, body, action }: { title: string; body?: string; action?: ReactNode }) {
+export function Empty({ title, body, action }: { title: string; body?: string | undefined; action?: ReactNode }) {
   return (
     <div className="rounded-2xl border border-dashed border-border bg-card px-6 py-14 text-center">
       <p className="font-display text-lg font-bold">{title}</p>

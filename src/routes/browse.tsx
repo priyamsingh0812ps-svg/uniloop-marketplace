@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { Header, Footer, ListingCard } from "@/components/site";
-import { CAMPUSES, CATEGORIES, listingsQuery, SAMPLE, type Category, type Mode } from "@/lib/listings";
+import { CATEGORIES, listingsQuery, SAMPLE, type Category, type Mode } from "@/lib/listings";
 
 type Search = { q?: string | undefined; category?: Category | undefined; mode?: Mode | undefined; campus?: string | undefined; max?: number | undefined };
 
@@ -65,7 +65,7 @@ function Browse() {
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
           <select className={select} value={s.category ?? ""} onChange={(e) => set({ category: (e.target.value || undefined) as Category })}>
             <option value="">All categories</option>
-            {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.emoji} {c.label}</option>)}
+            {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
           </select>
           <select className={select} value={s.campus ?? ""} onChange={(e) => set({ campus: e.target.value || undefined })}>
             <option value="">All campuses</option>
