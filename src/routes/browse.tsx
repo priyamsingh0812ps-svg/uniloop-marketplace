@@ -69,7 +69,7 @@ function Browse() {
           </select>
           <select className={select} value={s.campus ?? ""} onChange={(e) => set({ campus: e.target.value || undefined })}>
             <option value="">All campuses</option>
-            {CAMPUSES.map((c) => <option key={c}>{c}</option>)}
+            {Array.from(new Set(data.map((l) => l.campus).filter(Boolean))).sort().map((c) => <option key={c}>{c}</option>)}
           </select>
           <select className={`${select} col-span-2 sm:col-span-1`} value={s.max ?? ""} onChange={(e) => set({ max: e.target.value ? Number(e.target.value) : undefined })}>
             <option value="">Any price</option>
