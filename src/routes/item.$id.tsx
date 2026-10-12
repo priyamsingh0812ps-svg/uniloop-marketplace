@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Loader2, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Header, Footer, ListingCard, Loader } from "@/components/site";
-import { CATEGORIES, formatPrice, isSample, listingQuery, listingsQuery, SAMPLE } from "@/lib/listings";
+import { CATEGORIES, formatPrice, isSample, listingQuery, sellerName, listingsQuery, SAMPLE } from "@/lib/listings";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 
@@ -96,10 +96,10 @@ function Item() {
 
             <div className="mt-6 flex items-center gap-3 rounded-2xl border border-border bg-card p-4">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-hero font-display text-lg font-bold text-primary-foreground">
-                {l.seller_name?.[0] ?? "S"}
+                {sellerName(l)[0]}
               </div>
               <div className="flex-1">
-                <p className="font-semibold">{l.seller_name ?? "Student"}</p>
+                <p className="font-semibold">{sellerName(l)}</p>
                 <p className="text-xs text-muted-foreground">
                   <span className="font-semibold text-primary">✓ Verified Student</span> · ★ {l.seller_rating ?? "New"}
                 </p>
