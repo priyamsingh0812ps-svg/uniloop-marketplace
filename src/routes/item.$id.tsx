@@ -1,8 +1,12 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { Header, Footer, ListingCard } from "@/components/site";
-import { CATEGORIES, formatPrice, listingsQuery, SAMPLE } from "@/lib/listings";
+import { Loader2, MessageCircle } from "lucide-react";
+import { toast } from "sonner";
+import { Header, Footer, ListingCard, Loader } from "@/components/site";
+import { CATEGORIES, formatPrice, isSample, listingQuery, sellerName, listingsQuery, SAMPLE } from "@/lib/listings";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/item/$id")({
   head: () => ({
@@ -21,10 +25,15 @@ export const Route = createFileRoute("/item/$id")({
 function Item() {
   const { id } = Route.useParams();
   const { data = SAMPLE } = useQuery(listingsQuery);
+  const one = useQuery(listingQuery(id));
+  const { user } = useAuth();
+  const nav = useNavigate();
   const [saved, setSaved] = useState(false);
-  const l = data.find((x) => x.id === id);
+  const [busy, setBusy] = useState(false);
+  const l = one.data ?? data.find((x) => x.id === id);
 
   if (!l) {
+    if (one.isLoading) return <div className="min-h-screen"><Header /><Loader /></div>;
     return (
       <div className="min-h-screen"><Header />
         <div className="py-32 text-center">
@@ -34,6 +43,32 @@ function Item() {
       </div>
     );
   }
+  const demo = isSample(l.id) || !l.seller_id;
+  const own = !!user && user.id === l.seller_id;
+
+  const startChat = async () => {
+    if (demo || own || !l.seller_id) return;
+    if (!user) { nav({ to: "/login", search: { redirect: `/item/${l.id}` } }); return; }
+    setBusy(true);
+    try {
+      const find = () => supabase.from("conversations").select("id").eq("item_id", l.id).eq("buyer_id", user.id).maybeSingle();
+      let { data: cv } = await find();
+      if (!cv) {
+        const ins = await supabase.from("conversations").insert({ item_id: l.id, buyer_id: user.id, seller_id: l.seller_id }).select("id").single();
+        if (ins.error) {
+          if (ins.error.code !== "23505") throw new Error(ins.error.message);
+          cv = (await find()).data; // created concurrently — reuse it
+        } else cv = ins.data;
+      }
+      if (!cv) throw new Error("Could not open the chat");
+      nav({ to: "/messages", search: { c: cv.id } });
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const cat = CATEGORIES.find((c) => c.value === l.category);
   const similar = data.filter((x) => x.id !== l.id && (x.category === l.category || x.campus === l.campus)).slice(0, 4);
 
@@ -61,18 +96,30 @@ function Item() {
 
             <div className="mt-6 flex items-center gap-3 rounded-2xl border border-border bg-card p-4">
               <div className="flex h-12 w-12 items-center justify-center rounded-full bg-hero font-display text-lg font-bold text-primary-foreground">
-                {l.seller_name?.[0] ?? "S"}
+                {sellerName(l)[0]}
               </div>
               <div className="flex-1">
-                <p className="font-semibold">{l.seller_name ?? "Student"}</p>
+                <p className="font-semibold">{sellerName(l)}</p>
                 <p className="text-xs text-muted-foreground">
                   <span className="font-semibold text-primary">✓ Verified Student</span> · ★ {l.seller_rating ?? "New"}
                 </p>
               </div>
             </div>
 
-            <div className="mt-6 flex gap-3">
-              <button className="btn-accent flex-1 py-3.5">Chat with seller</button>
+            {demo && (
+              <p className="mt-6 rounded-xl bg-accent/15 px-4 py-3 text-sm">
+                <b>Demo listing</b> — this is sample data with no real seller account, so chat is disabled.
+              </p>
+            )}
+            <div className="mt-4 flex gap-3">
+              {own ? (
+                <Link to="/my-listings" className="btn-primary flex-1 py-3.5">This is your listing — manage it</Link>
+              ) : (
+                <button onClick={startChat} disabled={demo || busy} className="btn-accent flex-1 gap-2 py-3.5 disabled:cursor-not-allowed disabled:opacity-50">
+                  {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
+                  {demo ? "Chat unavailable" : "Chat with seller"}
+                </button>
+              )}
               <button onClick={() => setSaved(!saved)} aria-label="Save to wishlist"
                 className={`rounded-full border px-5 text-xl transition ${saved ? "border-accent bg-accent text-accent-foreground" : "border-border bg-card"}`}>
                 {saved ? "♥" : "♡"}
