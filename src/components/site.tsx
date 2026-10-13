@@ -57,6 +57,7 @@ export function Header() {
         <Logo />
         <nav className="hidden items-center gap-1 text-sm font-medium md:flex">
           <Link to="/browse" className="rounded-full px-4 py-2 text-muted-foreground hover:text-foreground" activeProps={{ className: "text-foreground" }}>Browse</Link>
+          <Link to="/about" className="rounded-full px-4 py-2 text-muted-foreground hover:text-foreground" activeProps={{ className: "text-foreground" }}>About</Link>
           <Link to="/sell" className="btn-accent px-4 py-2">Sell</Link>
           {user ? (
             <>
@@ -103,6 +104,7 @@ export function Header() {
               <div className="mt-6 flex flex-col gap-1 text-base font-medium">
                 {user && <div className="mb-3 flex items-center gap-3"><Avatar name={name} url={profile?.avatar_url} /><span className="truncate">{name}</span></div>}
                 <MobileLink to="/browse" onClick={() => setOpen(false)}>Browse</MobileLink>
+                <MobileLink to="/about" onClick={() => setOpen(false)}>About</MobileLink>
                 <MobileLink to="/sell" onClick={() => setOpen(false)}>Sell an item</MobileLink>
                 {user ? (
                   <>
