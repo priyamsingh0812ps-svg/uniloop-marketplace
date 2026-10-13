@@ -31,6 +31,9 @@ function Item() {
   const nav = useNavigate();
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [confirm, setConfirm] = useState(false);
+  const [ordering, setOrdering] = useState(false);
+  const qc = useQueryClient();
   const l = one.data ?? data.find((x) => x.id === id);
 
   if (!l) {

@@ -45,6 +45,7 @@ export function Header() {
 
   const links = [
     { to: "/my-listings", label: "My Listings" },
+    { to: "/my-orders", label: "My Orders" },
     { to: "/my-requests", label: "My Requests" },
     { to: "/messages", label: "Messages" },
     { to: "/dashboard", label: "Dashboard" },
