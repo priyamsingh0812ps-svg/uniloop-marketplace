@@ -1,7 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Loader2, MessageCircle } from "lucide-react";
+import { Loader2, MessageCircle, ShoppingBag } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Header, Footer, ListingCard, Loader } from "@/components/site";
 import { CATEGORIES, formatPrice, isSample, listingQuery, sellerName, listingsQuery, SAMPLE } from "@/lib/listings";
@@ -30,6 +31,9 @@ function Item() {
   const nav = useNavigate();
   const [saved, setSaved] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [confirm, setConfirm] = useState(false);
+  const [ordering, setOrdering] = useState(false);
+  const qc = useQueryClient();
   const l = one.data ?? data.find((x) => x.id === id);
 
   if (!l) {
@@ -72,9 +76,51 @@ function Item() {
   const cat = CATEGORIES.find((c) => c.value === l.category);
   const similar = data.filter((x) => x.id !== l.id && (x.category === l.category || x.campus === l.campus)).slice(0, 4);
 
+  const canBuy = !!user && !own && !demo && l.mode === "buy" && l.status === "available";
+
+  const placeOrder = async () => {
+    setOrdering(true);
+    const { data: res, error } = await supabase.rpc("place_order", { p_listing_id: l.id });
+    setOrdering(false);
+    if (error) {
+      toast.error(error.message.includes("place_order") ? "Ordering isn't set up yet — run db/orders.sql in Supabase." : error.message);
+      qc.invalidateQueries({ queryKey: ["listing", l.id] });
+      return;
+    }
+    setConfirm(false);
+    toast.success("Order requested! The seller has been notified in chat.");
+    qc.invalidateQueries({ queryKey: ["listing", l.id] });
+    qc.invalidateQueries({ queryKey: ["listings"] });
+    qc.invalidateQueries({ queryKey: ["orders"] });
+    void res;
+    nav({ to: "/my-orders" });
+  };
+
   return (
     <div className="min-h-screen">
       <Header />
+      <Dialog open={confirm} onOpenChange={(o) => !ordering && setConfirm(o)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm your order</DialogTitle>
+            <DialogDescription>The item will be reserved for you until the seller responds.</DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center gap-3 rounded-2xl border border-border p-3">
+            {l.image_url && <img src={l.image_url} alt="" className="h-16 w-16 rounded-xl object-cover" />}
+            <div className="min-w-0">
+              <p className="truncate font-semibold">{l.title}</p>
+              <p className="font-display text-xl font-bold text-primary">{formatPrice(l)}</p>
+            </div>
+          </div>
+          <p className="rounded-xl bg-accent/15 px-4 py-3 text-sm font-medium">Pay the seller in person after meeting on campus.</p>
+          <DialogFooter className="gap-2">
+            <button onClick={() => setConfirm(false)} disabled={ordering} className="rounded-full border border-border px-5 py-2.5 font-semibold">Cancel</button>
+            <button onClick={placeOrder} disabled={ordering} className="btn-accent gap-2 px-5 py-2.5 disabled:opacity-60">
+              {ordering && <Loader2 className="h-4 w-4 animate-spin" />}Confirm order
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <main className="mx-auto max-w-6xl px-4 py-8">
         <Link to="/browse" className="text-sm font-medium text-muted-foreground hover:text-foreground">← Back to browse</Link>
         <div className="mt-4 grid gap-8 md:grid-cols-2">
@@ -111,14 +157,26 @@ function Item() {
                 <b>Demo listing</b> — this is sample data with no real seller account, so chat is disabled.
               </p>
             )}
-            <div className="mt-4 flex gap-3">
+            {l.status !== "available" && (
+              <p className={`mt-4 inline-flex rounded-full px-3 py-1 text-sm font-bold uppercase tracking-wide ${l.status === "sold" ? "bg-foreground text-background" : "bg-accent/20 text-accent-foreground"}`}>
+                {l.status === "sold" ? "Sold" : l.status === "reserved" ? "Reserved" : "Unavailable"}
+              </p>
+            )}
+            <div className="mt-4 flex flex-wrap gap-3">
               {own ? (
                 <Link to="/my-listings" className="btn-primary flex-1 py-3.5">This is your listing — manage it</Link>
               ) : (
-                <button onClick={startChat} disabled={demo || busy} className="btn-accent flex-1 gap-2 py-3.5 disabled:cursor-not-allowed disabled:opacity-50">
-                  {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
-                  {demo ? "Chat unavailable" : "Chat with seller"}
-                </button>
+                <>
+                  {canBuy && (
+                    <button onClick={() => setConfirm(true)} className="btn-accent flex-1 gap-2 py-3.5">
+                      <ShoppingBag className="h-4 w-4" />Buy Now
+                    </button>
+                  )}
+                  <button onClick={startChat} disabled={demo || busy} className={`${canBuy ? "btn-primary" : "btn-accent"} flex-1 gap-2 py-3.5 disabled:cursor-not-allowed disabled:opacity-50`}>
+                    {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageCircle className="h-4 w-4" />}
+                    {demo ? "Chat unavailable" : "Chat with seller"}
+                  </button>
+                </>
               )}
               <button onClick={() => setSaved(!saved)} aria-label="Save to wishlist"
                 className={`rounded-full border px-5 text-xl transition ${saved ? "border-accent bg-accent text-accent-foreground" : "border-border bg-card"}`}>
