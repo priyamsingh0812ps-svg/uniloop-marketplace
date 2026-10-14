@@ -63,7 +63,7 @@ function Signup() {
       <form onSubmit={submit} className="mx-auto max-w-sm rounded-3xl border border-border bg-card p-6 shadow-soft sm:p-8">
         <h1 className="font-display text-3xl font-bold">Join UniLoop</h1>
         <p className="mt-1 text-sm text-muted-foreground">Use your college email to get the Verified Student badge.</p>
-        {([["name", "Full name", "text"], ["college", "College name", "text"], ["email", "College email", "email"], ["password", "Password (8+ characters)", "password"]] as const).map(([k, label, type]) => (
+        {([["name", "Full name", "text"], ["college", "College name", "text"], ["email", "Email", "email"], ["password", "Password (8+ characters)", "password"]] as const).map(([k, label, type]) => (
           <label key={k} className="mt-4 block text-sm font-medium">{label}
             <input type={type} value={f[k]} onChange={set(k)} className={`${inputCls} mt-1`} />
           </label>
