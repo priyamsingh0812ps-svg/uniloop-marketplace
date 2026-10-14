@@ -52,7 +52,7 @@ function Signup() {
         <MailCheck className="mx-auto h-12 w-12 text-primary" />
         <h1 className="mt-4 font-display text-2xl font-bold">Check your inbox</h1>
         <p className="mt-2 text-sm text-muted-foreground">We sent a verification link to <b>{f.email}</b>. Click it, then log in.</p>
-        {!isCollege(f.email) && <p className="mt-3 rounded-xl bg-accent/15 p-3 text-sm">Not a college email? After logging in, upload your college ID card from your Dashboard to get reviewed.</p>}
+        {!isCollege(f.email) && <p className="mt-3 rounded-xl bg-accent/15 p-3 text-sm">You can use your personal email. Upload your college ID card from your Dashboard to get verified as a student.</p>}
         <Link to="/login" className="btn-primary mt-6 px-6 py-3">Go to login</Link>
       </div>
     </Page>
