@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Header, Loader, Empty, Avatar } from "@/components/site";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
+import { usePresenceHeartbeat, useLastSeen } from "@/hooks/usePresence";
 
 export const Route = createFileRoute("/_authenticated/messages")({
   validateSearch: (s: Record<string, unknown>): { c?: string | undefined } => ({ c: typeof s.c === "string" ? s.c : undefined }),
@@ -86,6 +87,7 @@ function Messages() {
   const nav = useNavigate({ from: "/messages" });
   const qc = useQueryClient();
   const [q, setQ] = useState("");
+  usePresenceHeartbeat(!!user);
 
   const convos = useQuery({
     queryKey: ["convos", user?.id],
@@ -195,6 +197,37 @@ function Chat({ convo, onBack, onRead }: { convo: Convo; onBack: () => void; onR
   const cancelled = useRef(false);
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   const other = convo.buyer_id === user?.id ? convo.seller : convo.buyer;
+  const otherId = convo.buyer_id === user?.id ? convo.seller_id : convo.buyer_id;
+  const status = useLastSeen(otherId);
+  const [typing, setTyping] = useState(false);
+  const typingCh = useRef<ReturnType<typeof supabase.channel> | null>(null);
+  const typingOff = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastTypingSent = useRef(0);
+
+  useEffect(() => {
+    const ch = supabase.channel(`typing-${convo.id}`)
+      .on("broadcast", { event: "typing" }, (p) => {
+        if ((p.payload as { user?: string } | undefined)?.user === user!.id) return;
+        setTyping(true);
+        if (typingOff.current) clearTimeout(typingOff.current);
+        typingOff.current = setTimeout(() => setTyping(false), 3000);
+      })
+      .subscribe();
+    typingCh.current = ch;
+    return () => {
+      if (typingOff.current) clearTimeout(typingOff.current);
+      supabase.removeChannel(ch);
+      typingCh.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [convo.id]);
+
+  const notifyTyping = () => {
+    const now = Date.now();
+    if (now - lastTypingSent.current < 2000) return;
+    lastTypingSent.current = now;
+    void typingCh.current?.send({ type: "broadcast", event: "typing", payload: { user: user!.id } });
+  };
 
   const markRead = async () => {
     const { error } = await supabase.from("messages").update({ read: true }).eq("conversation_id", convo.id).neq("sender_id", user!.id).eq("read", false);
@@ -382,6 +415,12 @@ function Chat({ convo, onBack, onRead }: { convo: Convo; onBack: () => void; onR
         <Avatar name={other?.full_name ?? "?"} url={other?.avatar_url} />
         <div className="min-w-0">
           <p className="truncate font-semibold">{other?.full_name || "Student"}</p>
+          {(typing || status.text) && (
+            <p className={`flex items-center gap-1 truncate text-xs ${typing || status.online ? "text-green-600" : "text-muted-foreground"}`}>
+              {!typing && status.online && <span className="h-2 w-2 shrink-0 rounded-full bg-green-500" />}
+              {typing ? "typing…" : status.text}
+            </p>
+          )}
           {convo.item && <Link to="/item/$id" params={{ id: convo.item.id }} className="block truncate text-xs text-accent">{convo.item.title}</Link>}
         </div>
         <div className="ml-auto flex shrink-0 items-center gap-1">
@@ -472,7 +511,7 @@ function Chat({ convo, onBack, onRead }: { convo: Convo; onBack: () => void; onR
             <button type="button" onClick={() => fileInput.current?.click()} disabled={sending}
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-secondary disabled:opacity-50" aria-label="Send photo"><ImageIcon className="h-5 w-5" /></button>
             <input ref={fileInput} type="file" accept="image/*" onChange={pickImage} className="hidden" />
-            <textarea value={text} onChange={(e) => setText(e.target.value)} rows={1} placeholder={pendingImage ? "Add a caption…" : "Message…"} maxLength={2000}
+            <textarea value={text} onChange={(e) => { setText(e.target.value); notifyTyping(); }} rows={1} placeholder={pendingImage ? "Add a caption…" : "Message…"} maxLength={2000}
               onFocus={() => setShowEmoji(false)}
               onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
               className="max-h-32 min-w-0 flex-1 resize-none rounded-full border border-input bg-secondary px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
