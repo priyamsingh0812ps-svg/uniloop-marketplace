@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Check, CheckCheck, Image as ImageIcon, Mic, Search, Send, Smile, X } from "lucide-react";
+import { ArrowLeft, Check, CheckCheck, Image as ImageIcon, Mic, Phone, Search, Send, Smile, Video, X } from "lucide-react";
 import { toast } from "sonner";
 import { Header, Loader, Empty, Avatar } from "@/components/site";
 import { supabase } from "@/lib/supabase";
@@ -47,8 +47,16 @@ const EMOJIS = [
 const MAX_BYTES = 5 * 1024 * 1024;
 const MAX_RECORD_SECONDS = 120;
 
+const CALL_RE = /^(📞 Voice|📹 Video) call\n(https:\/\/meet\.jit\.si\/\S+)$/;
+const parseCall = (content?: string | null) => {
+  const m = content ? CALL_RE.exec(content) : null;
+  return m ? { kind: m[1]!.includes("Video") ? "video" : "voice", url: m[2]! } : null;
+};
+
 const preview = (m?: Msg) => {
   if (!m) return "";
+  const call = m.message_type === "text" || !m.message_type ? parseCall(m.content) : null;
+  if (call) return call.kind === "video" ? "📹 Video call" : "📞 Voice call";
   if (m.message_type === "image") return m.content ? `📷 ${m.content}` : "📷 Photo";
   if (m.message_type === "audio") return "🎤 Voice message";
   return m.content ?? "";
@@ -347,6 +355,23 @@ function Chat({ convo, onBack, onRead }: { convo: Convo; onBack: () => void; onR
     if (recorder.current && recorder.current.state !== "inactive") recorder.current.stop();
   };
 
+  const startCall = async (kind: "voice" | "video") => {
+    if (sending || recording) return;
+    const win = window.open("about:blank", "_blank");
+    const room = `UniLoop-${crypto.randomUUID().replace(/-/g, "")}`;
+    const url = `https://meet.jit.si/${room}`;
+    const label = kind === "video" ? "📹 Video" : "📞 Voice";
+    try {
+      await insertRow({ content: `${label} call\n${url}`, message_type: "text", media_url: null });
+      const joinUrl = kind === "voice" ? `${url}#config.startWithVideoMuted=true` : url;
+      if (win) win.location.href = joinUrl;
+      else toast.message("Call started. Tap “Join call” in the chat to open it.");
+    } catch (e) {
+      win?.close();
+      toast.error("Couldn't start call: " + (e as Error).message);
+    }
+  };
+
   const lastMineId = [...(msgs ?? [])].reverse().find((m) => m.sender_id === user?.id)?.id;
   const canSend = !sending && (!!text.trim() || !!pendingImage);
 
@@ -358,6 +383,10 @@ function Chat({ convo, onBack, onRead }: { convo: Convo; onBack: () => void; onR
         <div className="min-w-0">
           <p className="truncate font-semibold">{other?.full_name || "Student"}</p>
           {convo.item && <Link to="/item/$id" params={{ id: convo.item.id }} className="block truncate text-xs text-accent">{convo.item.title}</Link>}
+        </div>
+        <div className="ml-auto flex shrink-0 items-center gap-1">
+          <button onClick={() => startCall("voice")} disabled={sending || recording} className="rounded-full p-2 hover:bg-secondary disabled:opacity-50" aria-label="Start voice call"><Phone className="h-5 w-5" /></button>
+          <button onClick={() => startCall("video")} disabled={sending || recording} className="rounded-full p-2 hover:bg-secondary disabled:opacity-50" aria-label="Start video call"><Video className="h-5 w-5" /></button>
         </div>
       </div>
       <div className="flex-1 space-y-1.5 overflow-y-auto bg-background p-4">
@@ -378,7 +407,23 @@ function Chat({ convo, onBack, onRead }: { convo: Convo; onBack: () => void; onR
                     {m.message_type === "audio" && m.media_url && (
                       <audio controls preload="metadata" src={m.media_url} className="h-10 w-56 max-w-full" />
                     )}
-                    {m.content && <p className="whitespace-pre-wrap break-words">{m.content}</p>}
+                    {(() => {
+                      const call = parseCall(m.content);
+                      if (call) {
+                        const href = call.kind === "voice" ? `${call.url}#config.startWithVideoMuted=true` : call.url;
+                        return (
+                          <div className="flex items-center gap-3">
+                            <span className="text-xl">{call.kind === "video" ? "📹" : "📞"}</span>
+                            <div>
+                              <p className="font-semibold">{call.kind === "video" ? "Video call" : "Voice call"}</p>
+                              <a href={href} target="_blank" rel="noopener noreferrer"
+                                className={`mt-1 inline-block rounded-full px-3 py-1 text-xs font-semibold ${mine ? "bg-white text-accent" : "bg-accent text-accent-foreground"}`}>Join call</a>
+                            </div>
+                          </div>
+                        );
+                      }
+                      return m.content ? <p className="whitespace-pre-wrap break-words">{m.content}</p> : null;
+                    })()}
                   </div>
                 </div>
                 <p className={`mt-0.5 flex items-center gap-1 text-[10px] text-muted-foreground ${mine ? "justify-end" : "justify-start"}`}>
