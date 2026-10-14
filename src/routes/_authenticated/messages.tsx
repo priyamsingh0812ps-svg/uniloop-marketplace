@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Check, CheckCheck, Image as ImageIcon, Mic, Phone, Search, Send, Smile, Video, X } from "lucide-react";
+import { ArrowLeft, Check, CheckCheck, Image as ImageIcon, Mic, Phone, Search, Send, Smile, Trash2, Video, X } from "lucide-react";
 import { toast } from "sonner";
 import { Header, Loader, Empty, Avatar } from "@/components/site";
 import { supabase } from "@/lib/supabase";
@@ -28,6 +28,7 @@ interface Msg {
   content: string | null; created_at: string; read: boolean;
   message_type?: "text" | "image" | "audio" | null;
   media_url?: string | null;
+  deleted_at?: string | null;
 }
 interface Person { full_name: string; avatar_url: string | null }
 interface Convo {
@@ -56,6 +57,7 @@ const parseCall = (content?: string | null) => {
 
 const preview = (m?: Msg) => {
   if (!m) return "";
+  if (m.deleted_at) return "🚫 This message was deleted";
   const call = m.message_type === "text" || !m.message_type ? parseCall(m.content) : null;
   if (call) return call.kind === "video" ? "📹 Video call" : "📞 Voice call";
   if (m.message_type === "image") return m.content ? `📷 ${m.content}` : "📷 Photo";
@@ -251,7 +253,7 @@ function Chat({ convo, onBack, onRead }: { convo: Convo; onBack: () => void; onR
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "messages", filter: `conversation_id=eq.${convo.id}` }, (p) => {
         const m = p.new as Msg;
-        setMsgs((prev) => prev?.map((x) => (x.id === m.id ? { ...x, read: m.read } : x)) ?? prev);
+        setMsgs((prev) => prev?.map((x) => (x.id === m.id ? { ...x, read: m.read, deleted_at: m.deleted_at ?? null, content: m.content, media_url: m.media_url } : x)) ?? prev);
       })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
@@ -405,6 +407,14 @@ function Chat({ convo, onBack, onRead }: { convo: Convo; onBack: () => void; onR
     }
   };
 
+  const deleteForEveryone = async (id: string) => {
+    if (!window.confirm("Delete this message for everyone?")) return;
+    const call = (supabase as unknown as { rpc: (fn: string, args: object) => Promise<{ error: { message: string } | null }> }).rpc;
+    const { error } = await call.call(supabase, "delete_message_for_everyone", { p_id: id });
+    if (error) return toast.error("Couldn't delete: " + error.message);
+    setMsgs((prev) => prev?.map((x) => (x.id === id ? { ...x, deleted_at: new Date().toISOString(), content: null, media_url: null } : x)) ?? prev);
+  };
+
   const lastMineId = [...(msgs ?? [])].reverse().find((m) => m.sender_id === user?.id)?.id;
   const canSend = !sending && (!!text.trim() || !!pendingImage);
 
@@ -437,7 +447,11 @@ function Chat({ convo, onBack, onRead }: { convo: Convo; onBack: () => void; onR
               <div key={m.id}>
                 {newDay && <div className="my-3 flex justify-center"><span className="rounded-full bg-secondary px-3 py-1 text-xs text-muted-foreground">{dayLabel(m.created_at)}</span></div>}
                 <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+                  {mine && !m.deleted_at && (
+                    <button type="button" onClick={() => deleteForEveryone(m.id)} className="mr-1 self-center rounded-full p-1.5 text-muted-foreground hover:bg-secondary hover:text-destructive" aria-label="Delete for everyone" title="Delete for everyone"><Trash2 className="h-3.5 w-3.5" /></button>
+                  )}
                   <div className={`max-w-[78%] rounded-2xl px-4 py-2 text-sm shadow-soft ${mine ? "rounded-br-sm bg-accent text-accent-foreground" : "rounded-bl-sm bg-card"}`}>
+                    {m.deleted_at ? <p className="italic opacity-70">🚫 This message was deleted</p> : (<>
                     {m.message_type === "image" && m.media_url && (
                       <button type="button" onClick={() => setViewer(m.media_url!)} className="mb-1 block">
                         <img src={m.media_url} alt="Photo" loading="lazy" className="max-h-64 w-full rounded-xl object-cover" />
@@ -463,6 +477,7 @@ function Chat({ convo, onBack, onRead }: { convo: Convo; onBack: () => void; onR
                       }
                       return m.content ? <p className="whitespace-pre-wrap break-words">{m.content}</p> : null;
                     })()}
+                    </>)}
                   </div>
                 </div>
                 <p className={`mt-0.5 flex items-center gap-1 text-[10px] text-muted-foreground ${mine ? "justify-end" : "justify-start"}`}>
