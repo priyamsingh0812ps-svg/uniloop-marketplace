@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Check, CheckCheck, Search, Send } from "lucide-react";
+import { ArrowLeft, Check, CheckCheck, Image as ImageIcon, Mic, Search, Send, Smile, X } from "lucide-react";
 import { toast } from "sonner";
 import { Header, Loader, Empty, Avatar } from "@/components/site";
 import { supabase } from "@/lib/supabase";
@@ -22,7 +22,12 @@ export const Route = createFileRoute("/_authenticated/messages")({
   component: Messages,
 });
 
-interface Msg { id: string; conversation_id: string; sender_id: string; content: string; created_at: string; read: boolean }
+interface Msg {
+  id: string; conversation_id: string; sender_id: string;
+  content: string | null; created_at: string; read: boolean;
+  message_type?: "text" | "image" | "audio" | null;
+  media_url?: string | null;
+}
 interface Person { full_name: string; avatar_url: string | null }
 interface Convo {
   id: string; buyer_id: string; seller_id: string; created_at: string;
@@ -31,6 +36,23 @@ interface Convo {
   seller: Person | null;
   last?: Msg | undefined; unread: number;
 }
+
+const EMOJIS = [
+  "😀", "😁", "😂", "🤣", "😊", "😍", "😘", "😎", "🤔", "😅", "😢", "😭",
+  "😡", "🥺", "😴", "🤝", "👍", "👎", "👏", "🙏", "🙌", "💪", "👌", "✌️",
+  "🔥", "✨", "🎉", "💯", "❤️", "💔", "👀", "🤞", "📚", "🎒", "🚲", "💻",
+  "📱", "🎧", "💰", "✅", "❌", "⏰", "📍", "🍕", "☕", "🥳", "😇", "🙈",
+];
+
+const MAX_BYTES = 5 * 1024 * 1024;
+const MAX_RECORD_SECONDS = 120;
+
+const preview = (m?: Msg) => {
+  if (!m) return "";
+  if (m.message_type === "image") return m.content ? `📷 ${m.content}` : "📷 Photo";
+  if (m.message_type === "audio") return "🎤 Voice message";
+  return m.content ?? "";
+};
 
 const ago = (iso: string) => {
   const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
@@ -48,6 +70,7 @@ const dayLabel = (iso: string) => {
   if (d.toDateString() === y.toDateString()) return "Yesterday";
   return d.toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" });
 };
+const mmss = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 
 function Messages() {
   const { c } = Route.useSearch();
@@ -89,7 +112,7 @@ function Messages() {
   const shown = useMemo(() => {
     const t = q.trim().toLowerCase();
     if (!t) return convos.data ?? [];
-    return (convos.data ?? []).filter((cv) => `${other(cv)?.full_name ?? ""} ${cv.item?.title ?? ""} ${cv.last?.content ?? ""}`.toLowerCase().includes(t));
+    return (convos.data ?? []).filter((cv) => `${other(cv)?.full_name ?? ""} ${cv.item?.title ?? ""} ${preview(cv.last)}`.toLowerCase().includes(t));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [convos.data, q, user?.id]);
   const active = convos.data?.find((x) => x.id === c);
@@ -126,7 +149,7 @@ function Messages() {
                         <p className="truncate text-xs text-accent">{cv.item?.title ?? "Item removed"}</p>
                         <div className="flex items-center justify-between gap-2">
                           <p className={`truncate text-sm ${cv.unread ? "font-semibold text-foreground" : "text-muted-foreground"}`}>
-                            {cv.last ? `${mine ? "You: " : ""}${cv.last.content}` : "Say hi 👋"}
+                            {cv.last ? `${mine ? "You: " : ""}${preview(cv.last)}` : "Say hi 👋"}
                           </p>
                           {cv.unread > 0 && <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-accent px-1.5 text-[11px] font-bold text-accent-foreground">{cv.unread}</span>}
                         </div>
@@ -152,7 +175,17 @@ function Chat({ convo, onBack, onRead }: { convo: Convo; onBack: () => void; onR
   const [msgs, setMsgs] = useState<Msg[] | null>(null);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const [showEmoji, setShowEmoji] = useState(false);
+  const [pendingImage, setPendingImage] = useState<{ file: File; url: string } | null>(null);
+  const [viewer, setViewer] = useState<string | null>(null);
+  const [recording, setRecording] = useState(false);
+  const [seconds, setSeconds] = useState(0);
   const end = useRef<HTMLDivElement>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const recorder = useRef<MediaRecorder | null>(null);
+  const chunks = useRef<Blob[]>([]);
+  const cancelled = useRef(false);
+  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   const other = convo.buyer_id === user?.id ? convo.seller : convo.buyer;
 
   const markRead = async () => {
@@ -184,20 +217,138 @@ function Chat({ convo, onBack, onRead }: { convo: Convo; onBack: () => void; onR
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [convo.id]);
 
+  // Stop the microphone and timer if the chat is closed while recording
+  useEffect(() => {
+    return () => {
+      if (timer.current) clearInterval(timer.current);
+      cancelled.current = true;
+      if (recorder.current && recorder.current.state !== "inactive") {
+        recorder.current.stream.getTracks().forEach((t) => t.stop());
+        recorder.current.stop();
+      }
+    };
+  }, []);
+
   useEffect(() => { end.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs?.length]);
 
-  const send = async () => {
-    const body = text.trim();
-    if (!body || sending) return;
-    setSending(true);
-    const { data, error } = await supabase.from("messages").insert({ conversation_id: convo.id, sender_id: user!.id, content: body.slice(0, 2000) }).select().single();
-    setSending(false);
-    if (error) return toast.error("Message not sent: " + error.message);
-    setText("");
+  const insertRow = async (row: { content: string | null; message_type: "text" | "image" | "audio"; media_url: string | null }) => {
+    const { data, error } = await supabase.from("messages").insert({ conversation_id: convo.id, sender_id: user!.id, ...row }).select().single();
+    if (error) throw new Error(error.message);
     setMsgs((prev) => (prev?.some((x) => x.id === data.id) ? prev : [...(prev ?? []), data as Msg]));
   };
 
+  const upload = async (blob: Blob, ext: string, contentType: string) => {
+    const path = `${user!.id}/${crypto.randomUUID()}.${ext}`;
+    const { error } = await supabase.storage.from("chat-media").upload(path, blob, { contentType, upsert: false });
+    if (error) throw new Error(error.message);
+    return supabase.storage.from("chat-media").getPublicUrl(path).data.publicUrl;
+  };
+
+  const send = async () => {
+    if (sending) return;
+    const body = text.trim();
+    if (!body && !pendingImage) return;
+    setSending(true);
+    try {
+      if (pendingImage) {
+        const f = pendingImage.file;
+        const ext = (f.name.split(".").pop() || "jpg").toLowerCase();
+        const url = await upload(f, ext, f.type || "image/jpeg");
+        await insertRow({ content: body ? body.slice(0, 2000) : null, message_type: "image", media_url: url });
+        URL.revokeObjectURL(pendingImage.url);
+        setPendingImage(null);
+      } else {
+        await insertRow({ content: body.slice(0, 2000), message_type: "text", media_url: null });
+      }
+      setText("");
+      setShowEmoji(false);
+    } catch (e) {
+      toast.error("Message not sent: " + (e as Error).message);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const pickImage = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    if (!f) return;
+    if (!f.type.startsWith("image/")) return toast.error("Please choose an image file");
+    if (f.size > MAX_BYTES) return toast.error("Photo is too big. Maximum size is 5 MB");
+    if (pendingImage) URL.revokeObjectURL(pendingImage.url);
+    setPendingImage({ file: f, url: URL.createObjectURL(f) });
+    setShowEmoji(false);
+  };
+
+  const clearImage = () => {
+    if (pendingImage) URL.revokeObjectURL(pendingImage.url);
+    setPendingImage(null);
+  };
+
+  const stopTimer = () => {
+    if (timer.current) { clearInterval(timer.current); timer.current = null; }
+  };
+
+  const startRecording = async () => {
+    if (recording || sending) return;
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      return toast.error("Voice recording is not supported in this browser");
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mime = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4", "audio/ogg"].find((t) => MediaRecorder.isTypeSupported(t));
+      const rec = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+      chunks.current = [];
+      cancelled.current = false;
+      rec.ondataavailable = (ev) => { if (ev.data.size > 0) chunks.current.push(ev.data); };
+      rec.onstop = async () => {
+        stream.getTracks().forEach((t) => t.stop());
+        stopTimer();
+        setRecording(false);
+        if (cancelled.current) return;
+        const type = (rec.mimeType || mime || "audio/webm").split(";")[0]!;
+        const blob = new Blob(chunks.current, { type });
+        if (blob.size < 1000) return toast.error("Recording was too short");
+        if (blob.size > MAX_BYTES) return toast.error("Voice message is too big");
+        const ext = type.includes("mp4") ? "m4a" : type.includes("ogg") ? "ogg" : "webm";
+        setSending(true);
+        try {
+          const url = await upload(blob, ext, type);
+          await insertRow({ content: null, message_type: "audio", media_url: url });
+        } catch (e) {
+          toast.error("Voice message not sent: " + (e as Error).message);
+        } finally {
+          setSending(false);
+        }
+      };
+      recorder.current = rec;
+      rec.start();
+      setSeconds(0);
+      setRecording(true);
+      setShowEmoji(false);
+      timer.current = setInterval(() => {
+        setSeconds((s) => {
+          if (s + 1 >= MAX_RECORD_SECONDS) rec.state !== "inactive" && rec.stop();
+          return s + 1;
+        });
+      }, 1000);
+    } catch {
+      toast.error("Microphone permission denied. Please allow microphone access.");
+    }
+  };
+
+  const finishRecording = () => {
+    cancelled.current = false;
+    if (recorder.current && recorder.current.state !== "inactive") recorder.current.stop();
+  };
+
+  const cancelRecording = () => {
+    cancelled.current = true;
+    if (recorder.current && recorder.current.state !== "inactive") recorder.current.stop();
+  };
+
   const lastMineId = [...(msgs ?? [])].reverse().find((m) => m.sender_id === user?.id)?.id;
+  const canSend = !sending && (!!text.trim() || !!pendingImage);
 
   return (
     <>
@@ -219,7 +370,15 @@ function Chat({ convo, onBack, onRead }: { convo: Convo; onBack: () => void; onR
                 {newDay && <div className="my-3 flex justify-center"><span className="rounded-full bg-secondary px-3 py-1 text-xs text-muted-foreground">{dayLabel(m.created_at)}</span></div>}
                 <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                   <div className={`max-w-[78%] rounded-2xl px-4 py-2 text-sm shadow-soft ${mine ? "rounded-br-sm bg-accent text-accent-foreground" : "rounded-bl-sm bg-card"}`}>
-                    <p className="whitespace-pre-wrap break-words">{m.content}</p>
+                    {m.message_type === "image" && m.media_url && (
+                      <button type="button" onClick={() => setViewer(m.media_url!)} className="mb-1 block">
+                        <img src={m.media_url} alt="Photo" loading="lazy" className="max-h-64 w-full rounded-xl object-cover" />
+                      </button>
+                    )}
+                    {m.message_type === "audio" && m.media_url && (
+                      <audio controls preload="metadata" src={m.media_url} className="h-10 w-56 max-w-full" />
+                    )}
+                    {m.content && <p className="whitespace-pre-wrap break-words">{m.content}</p>}
                   </div>
                 </div>
                 <p className={`mt-0.5 flex items-center gap-1 text-[10px] text-muted-foreground ${mine ? "justify-end" : "justify-start"}`}>
@@ -232,12 +391,64 @@ function Chat({ convo, onBack, onRead }: { convo: Convo; onBack: () => void; onR
           })}
         <div ref={end} />
       </div>
-      <div className="flex items-end gap-2 border-t border-border p-3">
-        <textarea value={text} onChange={(e) => setText(e.target.value)} rows={1} placeholder="Message…" maxLength={2000}
-          onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
-          className="max-h-32 flex-1 resize-none rounded-full border border-input bg-secondary px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
-        <button onClick={send} disabled={sending || !text.trim()} className="btn-accent h-10 w-10 shrink-0 disabled:opacity-50" aria-label="Send"><Send className="h-4 w-4" /></button>
+
+      {pendingImage && (
+        <div className="flex items-center gap-3 border-t border-border bg-card px-3 py-2">
+          <img src={pendingImage.url} alt="Selected photo" className="h-16 w-16 rounded-lg object-cover" />
+          <p className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{pendingImage.file.name} — add a caption (optional) and press send</p>
+          <button onClick={clearImage} className="rounded-full p-1.5 hover:bg-secondary" aria-label="Remove photo"><X className="h-4 w-4" /></button>
+        </div>
+      )}
+
+      <div className="relative border-t border-border p-3">
+        {showEmoji && (
+          <div className="absolute bottom-full left-3 right-3 z-10 mb-2 grid max-h-48 grid-cols-8 gap-1 overflow-y-auto rounded-2xl border border-border bg-card p-2 shadow-soft sm:left-3 sm:right-auto sm:w-80">
+            {EMOJIS.map((em) => (
+              <button key={em} type="button" onClick={() => setText((t) => (t + em).slice(0, 2000))}
+                className="rounded-lg p-1 text-xl hover:bg-secondary" aria-label={`Insert ${em}`}>{em}</button>
+            ))}
+          </div>
+        )}
+
+        {recording ? (
+          <div className="flex items-center gap-3">
+            <button onClick={cancelRecording} className="rounded-full p-2 hover:bg-secondary" aria-label="Cancel recording"><X className="h-5 w-5" /></button>
+            <div className="flex flex-1 items-center gap-2 text-sm">
+              <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-red-500" />
+              <span className="font-semibold tabular-nums">{mmss(seconds)}</span>
+              <span className="text-muted-foreground">Recording…</span>
+            </div>
+            <button onClick={finishRecording} className="btn-accent h-10 w-10 shrink-0" aria-label="Send voice message"><Send className="h-4 w-4" /></button>
+          </div>
+        ) : (
+          <div className="flex items-end gap-1.5 sm:gap-2">
+            <button type="button" onClick={() => setShowEmoji((v) => !v)} disabled={sending}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-secondary disabled:opacity-50" aria-label="Emoji"><Smile className="h-5 w-5" /></button>
+            <button type="button" onClick={() => fileInput.current?.click()} disabled={sending}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-secondary disabled:opacity-50" aria-label="Send photo"><ImageIcon className="h-5 w-5" /></button>
+            <input ref={fileInput} type="file" accept="image/*" onChange={pickImage} className="hidden" />
+            <textarea value={text} onChange={(e) => setText(e.target.value)} rows={1} placeholder={pendingImage ? "Add a caption…" : "Message…"} maxLength={2000}
+              onFocus={() => setShowEmoji(false)}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
+              className="max-h-32 min-w-0 flex-1 resize-none rounded-full border border-input bg-secondary px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+            {canSend || sending ? (
+              <button onClick={send} disabled={!canSend} className="btn-accent h-10 w-10 shrink-0 disabled:opacity-50" aria-label="Send">
+                {sending ? <span className="text-[10px]">…</span> : <Send className="h-4 w-4" />}
+              </button>
+            ) : (
+              <button onClick={startRecording} className="btn-accent h-10 w-10 shrink-0" aria-label="Record voice message"><Mic className="h-4 w-4" /></button>
+            )}
+          </div>
+        )}
+        {sending && <p className="mt-1 px-2 text-xs text-muted-foreground">Uploading…</p>}
       </div>
+
+      {viewer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" onClick={() => setViewer(null)}>
+          <button className="absolute right-4 top-4 rounded-full bg-white/20 p-2 text-white" aria-label="Close" onClick={() => setViewer(null)}><X className="h-5 w-5" /></button>
+          <img src={viewer} alt="Full size" className="max-h-full max-w-full rounded-xl object-contain" onClick={(e) => e.stopPropagation()} />
+        </div>
+      )}
     </>
   );
 }
