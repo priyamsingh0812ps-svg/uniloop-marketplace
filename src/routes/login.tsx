@@ -44,7 +44,7 @@ function Login() {
       <form onSubmit={submit} className="mx-auto max-w-sm rounded-3xl border border-border bg-card p-6 shadow-soft sm:p-8">
         <h1 className="font-display text-3xl font-bold">Log in</h1>
         <p className="mt-1 text-sm text-muted-foreground">Welcome back to the loop.</p>
-        <label className="mt-6 block text-sm font-medium">College email
+        <label className="mt-6 block text-sm font-medium">Email
           <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={`${inputCls} mt-1`} autoComplete="email" />
         </label>
         <label className="mt-4 block text-sm font-medium">Password
