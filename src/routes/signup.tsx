@@ -39,7 +39,7 @@ function Signup() {
     const { error } = await supabase.auth.signUp({
       email: f.email.trim(),
       password: f.password,
-      options: { emailRedirectTo: `${window.location.origin}/dashboard`, data: { full_name: f.name.trim(), college: f.college.trim() } },
+      options: { emailRedirectTo: `${window.location.origin}/browse`, data: { full_name: f.name.trim(), college: f.college.trim() } },
     });
     setBusy(false);
     if (error) return setErr(friendlyAuthError(error.message));
