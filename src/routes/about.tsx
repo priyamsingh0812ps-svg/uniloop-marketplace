@@ -55,7 +55,7 @@ const team = [
   },
   {
     name: "Zaid Alam",
-    role: "Marketing Head",
+    role: "Co founder",
     description:
       "Focuses on marketing, brand awareness, and reaching the student community.",
   },
