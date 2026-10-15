@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
+import { motion } from "motion/react";
 import { Header, Footer, ListingCard } from "@/components/site";
 import { CATEGORIES, listingsQuery, SAMPLE } from "@/lib/listings";
 
@@ -28,28 +29,89 @@ function Index() {
         </svg>
         <div className="relative mx-auto max-w-6xl px-4 py-20 sm:py-28">
           <span className="chip bg-primary-foreground/15 text-primary-foreground">✓ Verified students only</span>
-          <h1 className="mt-5 max-w-2xl font-display text-5xl font-extrabold leading-[1.05] sm:text-7xl">
-            Buy it. Use it. <span className="text-accent">Loop it.</span>
-          </h1>
-          <p className="mt-5 max-w-lg text-lg opacity-90">
-            Pass on last semester's textbooks, rent a cycle for the month, or swap gadgets — with students on your own campus.
-          </p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <Link to="/browse" className="btn-accent px-7 py-3.5">Start browsing</Link>
-            <Link to="/browse" className="inline-flex items-center rounded-full border border-primary-foreground/40 px-7 py-3.5 font-semibold hover:bg-primary-foreground/10">List an item</Link>
-          </div>
+          
+<motion.h1
+  initial={{ opacity: 0, y: 30 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={{ duration: 0.8 }}
+  className="mt-5 max-w-2xl font-display text-5xl font-extrabold leading-[1.05] sm:text-7xl"
+>
+  Buy it. Use it. <span className="text-accent">Loop it.</span>
+</motion.h1>
+
+          
+<motion.p
+  initial={{ opacity: 0, y: 20 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={{ duration: 0.7, delay: 0.2 }}
+  className="mt-5 max-w-lg text-lg opacity-90"
+>
+  Pass on last semester's textbooks, rent a cycle for the month, or swap gadgets — with students on your own campus.
+</motion.p>
+
+         
+<motion.div
+  initial={{ opacity: 0, y: 20 }}
+  animate={{ opacity: 1, y: 0 }}
+  transition={{ duration: 0.7, delay: 0.4 }}
+  className="mt-8 flex flex-wrap gap-3"
+>
+  <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+    <Link to="/browse" className="btn-accent px-7 py-3.5">
+      Start browsing
+    </Link>
+  </motion.div>
+
+  <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+    <Link
+      to="/browse"
+      className="inline-flex items-center rounded-full border border-primary-foreground/40 px-7 py-3.5 font-semibold hover:bg-primary-foreground/10"
+    >
+      List an item
+    </Link>
+  </motion.div>
+</motion.div>
+
         </div>
       </section>
 
       <section className="mx-auto max-w-6xl px-4 py-14">
         <h2 className="font-display text-2xl font-bold">Shop by category</h2>
-        <div className="mt-6 grid grid-cols-3 gap-3 sm:grid-cols-6">
-          {CATEGORIES.map((c) => (
-            <Link key={c.value} to="/browse" search={{ category: c.value }} className="flex flex-col items-center gap-2 rounded-2xl border border-border bg-card p-4 text-sm font-semibold shadow-soft transition hover:-translate-y-0.5 hover:border-primary">
-              <c.icon className="h-10 w-10 text-accent" />{c.label}
-            </Link>
-          ))}
-        </div>
+        
+<motion.div
+  initial="hidden"
+  animate="visible"
+  variants={{
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: 0.12 },
+    },
+  }}
+  className="mt-6 grid grid-cols-3 gap-3 sm:grid-cols-6"
+>
+  {CATEGORIES.map((c) => (
+    <motion.div
+      key={c.value}
+      variants={{
+        hidden: { opacity: 0, y: 20 },
+        visible: { opacity: 1, y: 0 },
+      }}
+      whileHover={{ y: -5, scale: 1.03 }}
+      transition={{ duration: 0.3 }}
+    >
+      <Link
+        to="/browse"
+        search={{ category: c.value }}
+        className="flex flex-col items-center gap-2 rounded-2xl border border-border bg-card p-4 text-sm font-semibold shadow-soft transition hover:border-primary"
+      >
+        <c.icon className="h-10 w-10 text-accent" />
+        {c.label}
+      </Link>
+    </motion.div>
+  ))}
+</motion.div>
+
       </section>
 
       <section className="mx-auto max-w-6xl px-4">
@@ -58,13 +120,27 @@ function Index() {
             ["1", "Verify", "Sign up with your college email to earn the Verified Student badge."],
             ["2", "Loop", "List what you don't need — sell, rent or exchange in a minute."],
             ["3", "Meet", "Chat in-app and meet on campus. Rate each other after."],
-          ].map(([n, t, d]) => (
-            <div key={n} className="rounded-2xl bg-secondary p-6">
-              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent font-display font-bold text-accent-foreground">{n}</span>
-              <h3 className="mt-4 font-display text-xl font-bold text-secondary-foreground">{t}</h3>
-              <p className="mt-1 text-sm text-muted-foreground">{d}</p>
-            </div>
-          ))}
+          
+].map(([n, t, d]) => (
+  <motion.div
+    key={n}
+    initial={{ opacity: 0, y: 25 }}
+    whileInView={{ opacity: 1, y: 0 }}
+    viewport={{ once: true, amount: 0.2 }}
+    transition={{ duration: 0.5, delay: Number(n) * 0.15 }}
+    whileHover={{ y: -5 }}
+    className="rounded-2xl bg-secondary p-6"
+  >
+    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent font-display font-bold text-accent-foreground">
+      {n}
+    </span>
+    <h3 className="mt-4 font-display text-xl font-bold text-secondary-foreground">
+      {t}
+    </h3>
+    <p className="mt-1 text-sm text-muted-foreground">{d}</p>
+  </motion.div>
+))}
+
         </div>
       </section>
 
@@ -73,9 +149,34 @@ function Index() {
           <h2 className="font-display text-2xl font-bold">Fresh on campus</h2>
           <Link to="/browse" className="text-sm font-semibold text-primary">See all →</Link>
         </div>
-        <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-          {data.slice(0, 8).map((l) => <ListingCard key={l.id} l={l} />)}
-        </div>
+        
+<motion.div
+  initial="hidden"
+  whileInView="visible"
+  viewport={{ once: true, amount: 0.1 }}
+  variants={{
+    hidden: {},
+    visible: {
+      transition: { staggerChildren: 0.1 },
+    },
+  }}
+  className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4"
+>
+  {data.slice(0, 8).map((l) => (
+    <motion.div
+      key={l.id}
+      variants={{
+        hidden: { opacity: 0, y: 20 },
+        visible: { opacity: 1, y: 0 },
+      }}
+      transition={{ duration: 0.4 }}
+      whileHover={{ y: -4 }}
+    >
+      <ListingCard l={l} />
+    </motion.div>
+  ))}
+</motion.div>
+
       </section>
       <Footer />
     </div>
