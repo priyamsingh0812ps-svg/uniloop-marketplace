@@ -57,7 +57,7 @@ const team = [
     name: "Zaid Alam",
     role: "Co founder",
     description:
-      "Focuses on marketing, brand awareness, and reaching the student community.",
+      "Focuses on the execution of plan& sharing vision, risk, and responsibilities.",
   },
   {
     name: "Yashi Raj",
