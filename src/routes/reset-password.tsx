@@ -31,7 +31,7 @@ function Reset() {
     setBusy(false);
     if (error) return setErr(error.message.includes("session") ? "This reset link has expired. Request a new one." : error.message);
     toast.success("Password updated");
-    nav({ to: "/dashboard" });
+    nav({ to: "/browse" });
   };
   return (
     <Page>
