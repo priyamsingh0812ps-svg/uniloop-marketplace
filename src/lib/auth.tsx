@@ -104,5 +104,5 @@ export function friendlyAuthError(msg: string) {
 }
 
 export function safeRedirect(r: unknown) {
-  return typeof r === "string" && r.startsWith("/") && !r.startsWith("//") ? r : "/dashboard";
+  return typeof r === "string" && r.startsWith("/") && !r.startsWith("//") ? r : "/browse";
 }
