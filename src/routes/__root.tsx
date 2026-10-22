@@ -115,9 +115,13 @@ function RootShell({ children }: { children: ReactNode }) {
 
         {/* ElevenLabs Voice Assistant */}
        
+
 <elevenlabs-convai
   agent-id="agent_6701m5j84xd1e3evrd5md7d8mxfp"
+  action-text="Need help?"
+  start-call-text="Start a call"
 ></elevenlabs-convai>
+
 
 <script
   src="https://unpkg.com/@elevenlabs/convai-widget-embed"
