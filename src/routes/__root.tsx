@@ -103,6 +103,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   errorComponent: ErrorComponent,
 });
 
+
 function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
@@ -111,12 +112,27 @@ function RootShell({ children }: { children: ReactNode }) {
       </head>
       <body>
         {children}
+
+        {/* ElevenLabs Voice Assistant */}
+       
+<elevenlabs-convai
+  agent-id="agent_6701m5j84xd1e3evrd5md7d8mxfp"
+></elevenlabs-convai>
+
+<script
+  src="https://unpkg.com/@elevenlabs/convai-widget-embed"
+  async
+  type="text/javascript"
+></script>
+
+
         <Scripts />
         <Analytics />
       </body>
     </html>
   );
 }
+
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
